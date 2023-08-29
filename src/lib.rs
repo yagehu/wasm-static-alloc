@@ -21,7 +21,7 @@ impl Stack {
         self.entries.get(id)
     }
 
-    pub fn push<D>(&mut self, data: D, alignment: usize) -> EntryId
+    pub fn push<D>(&mut self, data: D, alignment: usize) -> (EntryId, usize)
     where
         D: IntoIterator<Item = u8>,
         D::IntoIter: ExactSizeIterator,
@@ -39,7 +39,7 @@ impl Stack {
             data: data.into_iter().collect(),
         });
 
-        self.entries.len() - 1
+        (self.entries.len() - 1, offset)
     }
 
     pub fn iter_entries(&self) -> impl ExactSizeIterator<Item = &DataEntry> {
