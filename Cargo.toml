@@ -3,5 +3,6 @@ name = "wasm-static-alloc"
 version = "0.1.0"
 edition = "2021"
 license = "GPL-3.0-or-later"
+description = "Statically allocate memory and encode them to WASM data section."
 
 [dependencies]
