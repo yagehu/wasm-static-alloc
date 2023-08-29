@@ -1,10 +1,13 @@
-struct Entry {
-    alignment: usize,
-    data:      Vec<u8>,
+#[derive(PartialEq, Eq, Clone, Debug)]
+pub struct DataEntry {
+    pub alignment: usize,
+    pub offset:    usize,
+    pub data:      Vec<u8>,
 }
 
+#[derive(PartialEq, Eq, Clone, Debug)]
 pub struct Stack {
-    entries: Vec<Entry>,
+    entries: Vec<DataEntry>,
 }
 
 impl Stack {
@@ -17,24 +20,28 @@ impl Stack {
         D: IntoIterator<Item = u8>,
         D::IntoIter: ExactSizeIterator,
     {
-        self.entries.push(Entry {
+        let prev_end_offset = self
+            .entries
+            .last()
+            .map(|entry| entry.offset + entry.data.len())
+            .unwrap_or_default();
+        let offset = prev_end_offset + (alignment - prev_end_offset % alignment) % alignment;
+
+        self.entries.push(DataEntry {
             alignment,
+            offset,
             data: data.into_iter().collect(),
         });
     }
 
-    pub fn iter_entry(&self) -> DataEntryIterator {
-        DataEntryIterator {
-            stack:           self,
-            next_idx:        0,
-            prev_end_offset: 0,
-        }
+    pub fn iter_entries(&self) -> impl ExactSizeIterator<Item = &DataEntry> {
+        self.entries.iter()
     }
 
     pub fn memory_pages_needed(&self) -> usize {
         const PAGE_SIZE_BYTES: usize = 65536;
 
-        let entry = match self.iter_entry().last() {
+        let entry = match self.iter_entries().last() {
             | None => return 0,
             | Some(e) => e,
         };
@@ -43,42 +50,6 @@ impl Stack {
 
         (entry.offset + entry.data.len()) / PAGE_SIZE_BYTES + if extra_page_needed { 1 } else { 0 }
     }
-}
-
-pub struct DataEntryIterator<'a> {
-    stack:           &'a Stack,
-    next_idx:        usize,
-    prev_end_offset: usize,
-}
-
-impl<'a> Iterator for DataEntryIterator<'a> {
-    type Item = DataEntry<'a>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let entry = self.stack.entries.get(self.next_idx)?;
-        let offset = self.prev_end_offset
-            + (entry.alignment - self.prev_end_offset % entry.alignment) % entry.alignment;
-
-        self.next_idx += 1;
-        self.prev_end_offset = offset + entry.data.len();
-
-        Some(DataEntry {
-            offset,
-            data: &entry.data,
-        })
-    }
-}
-
-impl ExactSizeIterator for DataEntryIterator<'_> {
-    fn len(&self) -> usize {
-        self.stack.entries.len()
-    }
-}
-
-#[derive(PartialEq, Eq, Clone, Debug)]
-pub struct DataEntry<'a> {
-    pub offset: usize,
-    pub data:   &'a [u8],
 }
 
 impl Default for Stack {
@@ -100,30 +71,34 @@ mod tests {
         stack.push([3; 4], 4);
         stack.push([4; 65536], 8);
 
-        let mut entries = stack.iter_entry();
+        let mut entries = stack.iter_entries();
         let expected_entries = [
             DataEntry {
-                offset: 0,
-                data:   &[1; 4],
+                alignment: 4,
+                offset:    0,
+                data:      vec![1; 4],
             },
             DataEntry {
-                offset: 4,
-                data:   &[2; 5],
+                alignment: 1,
+                offset:    4,
+                data:      vec![2; 5],
             },
             DataEntry {
-                offset: 12,
-                data:   &[3; 4],
+                alignment: 4,
+                offset:    12,
+                data:      vec![3; 4],
             },
             DataEntry {
-                offset: 16,
-                data:   &[4; 65536],
+                alignment: 8,
+                offset:    16,
+                data:      vec![4; 65536],
             },
         ];
 
         for expected_entry in expected_entries {
             let entry = entries.next().unwrap();
 
-            assert_eq!(entry, expected_entry);
+            assert_eq!(entry, &expected_entry);
         }
 
         assert_eq!(stack.memory_pages_needed(), 2);
