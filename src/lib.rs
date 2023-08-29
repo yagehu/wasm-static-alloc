@@ -1,3 +1,5 @@
+pub type EntryId = usize;
+
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct DataEntry {
     pub alignment: usize,
@@ -15,7 +17,11 @@ impl Stack {
         Self { entries: vec![] }
     }
 
-    pub fn push<D>(&mut self, data: D, alignment: usize)
+    pub fn get_entry(&self, id: EntryId) -> Option<&DataEntry> {
+        self.entries.get(id)
+    }
+
+    pub fn push<D>(&mut self, data: D, alignment: usize) -> EntryId
     where
         D: IntoIterator<Item = u8>,
         D::IntoIter: ExactSizeIterator,
@@ -32,6 +38,8 @@ impl Stack {
             offset,
             data: data.into_iter().collect(),
         });
+
+        self.entries.len() - 1
     }
 
     pub fn iter_entries(&self) -> impl ExactSizeIterator<Item = &DataEntry> {
