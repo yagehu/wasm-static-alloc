@@ -21,6 +21,10 @@ impl Stack {
         self.entries.get(id)
     }
 
+    pub fn get_entry_mut(&mut self, id: EntryId) -> Option<&mut DataEntry> {
+        self.entries.get_mut(id)
+    }
+
     pub fn push<D>(&mut self, data: D, alignment: usize) -> (EntryId, usize)
     where
         D: IntoIterator<Item = u8>,
